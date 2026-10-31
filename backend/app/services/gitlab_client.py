@@ -87,6 +87,33 @@ class GitLabClient:
             "web_url": mr.get("web_url"),
         }
 
+    def list_merge_requests(self, project, state="all"):
+        """Все MR проекта (state: opened / merged / closed / locked / all), от старых к новым."""
+        pid = self._pid(project)
+        params = {"per_page": 100, "order_by": "created_at", "sort": "asc"}
+        if state and state != "all":
+            params["state"] = state
+        items = []
+        page = 1
+        while True:
+            chunk = self._get(f"/projects/{pid}/merge_requests", params={**params, "page": page})
+            if chunk is None:
+                raise GitLabError(f"Проект {project} не найден в GitLab")
+            items.extend(chunk)
+            if len(chunk) < 100:
+                break
+            page += 1
+        return [
+            {
+                "iid": it["iid"],
+                "title": it.get("title"),
+                "state": it.get("state"),
+                "head_sha": it.get("sha"),
+                "web_url": it.get("web_url"),
+            }
+            for it in items
+        ]
+
     def get_merge_request_changes(self, project, iid):
         """Список изменённых файлов. Сначала /diffs (GitLab >= 15.7), затем /changes."""
         pid = self._pid(project)
@@ -142,6 +169,13 @@ class FixtureGitLabClient:
         mr = dict(self.data["merge_request"])
         mr["web_url"] = f"mock://{project}/-/merge_requests/{iid}"
         return mr
+
+    def list_merge_requests(self, project, state="all"):
+        mr = self.data["merge_request"]
+        if state not in ("all", "opened"):
+            return []
+        return [{"iid": 1, "title": mr["title"], "state": "opened", "head_sha": mr["head_sha"],
+                 "web_url": f"mock://{project}/-/merge_requests/1"}]
 
     def get_merge_request_changes(self, project, iid):
         result = []

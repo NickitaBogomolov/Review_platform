@@ -28,6 +28,38 @@
     </section>
 
     <section class="card">
+      <div class="card-header">Все MR проекта</div>
+      <form class="card-body new-review" @submit.prevent="sync">
+        <input
+          v-model.trim="project"
+          class="input"
+          placeholder="Проект GitLab: group/project (по умолчанию из GITLAB_PROJECT)"
+          :disabled="syncing"
+        />
+        <select v-model="mrState" class="input ticket" :disabled="syncing">
+          <option value="all">Все MR</option>
+          <option value="opened">Открытые</option>
+          <option value="merged">Влитые</option>
+          <option value="closed">Закрытые</option>
+        </select>
+        <button class="btn primary" :disabled="syncing || !project">
+          <span v-if="syncing" class="spinner" />
+          {{ syncing ? 'Импортируем MR…' : 'Загрузить все MR' }}
+        </button>
+      </form>
+      <div v-if="syncing" class="card-body muted small" style="padding-top: 0">
+        Новые MR анализируются, MR с новыми коммитами перезапускаются, неизменённые пропускаются.
+        Для большого проекта это может занять много времени.
+      </div>
+      <div v-if="syncResult" class="card-body small" style="padding-top: 0">
+        {{ syncResult.project }}: всего {{ syncResult.total }} · новых {{ syncResult.created }} ·
+        обновлено {{ syncResult.updated }} · без изменений {{ syncResult.skipped }}
+        <span v-if="syncResult.failed" class="badge err">с ошибкой {{ syncResult.failed }}</span>
+      </div>
+      <div v-if="syncError" class="card-body" style="padding-top: 0"><div class="error-box">{{ syncError }}</div></div>
+    </section>
+
+    <section class="card">
       <div class="card-header">
         Ревью
         <span class="badge">{{ reviews.length }}</span>
@@ -94,6 +126,11 @@ const error = ref('')
 const mrUrl = ref('')
 const ticketKey = ref('')
 const q = ref('')
+const project = ref('')
+const mrState = ref('all')
+const syncing = ref(false)
+const syncResult = ref(null)
+const syncError = ref('')
 
 async function load() {
   try {
@@ -128,6 +165,34 @@ async function create() {
   }
 }
 
+async function sync() {
+  syncError.value = ''
+  syncResult.value = null
+  syncing.value = true
+  try {
+    syncResult.value = await api.syncReviews({
+      project: project.value,
+      state: mrState.value,
+      reviewer: reviewer.value || null,
+    })
+    await load()
+  } catch (e) {
+    syncError.value = e.message
+  } finally {
+    syncing.value = false
+  }
+}
+
+async function loadDefaults() {
+  try {
+    const h = await api.health()
+    if (h.gitlab_project && !project.value) project.value = h.gitlab_project
+    if (h.gitlab_mr_state) mrState.value = h.gitlab_mr_state
+  } catch {
+    /* health необязателен */
+  }
+}
+
 function open(id) {
   router.push({ name: 'review', params: { id } })
 }
@@ -136,7 +201,10 @@ function verdictClass(v) {
   return v === 'approved' ? 'ok' : v === 'changes_requested' ? 'err' : 'info'
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  loadDefaults()
+})
 </script>
 
 <style scoped>

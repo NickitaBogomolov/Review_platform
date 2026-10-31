@@ -19,6 +19,7 @@ export const api = {
   health: () => request('GET', '/health'),
   listReviews: (q = '') => request('GET', `/reviews${q ? `?q=${encodeURIComponent(q)}` : ''}`),
   createReview: (payload) => request('POST', '/reviews', payload),
+  syncReviews: (payload = {}) => request('POST', '/reviews/sync', payload),
   getReview: (id) => request('GET', `/reviews/${id}`),
   updateReview: (id, payload) => request('PATCH', `/reviews/${id}`, payload),
   deleteReview: (id) => request('DELETE', `/reviews/${id}`),

@@ -19,6 +19,8 @@ from .tz_portal import TzPortalError, get_tz_portal_client
 
 log = logging.getLogger(__name__)
 
+MR_STATES = {"opened", "merged", "closed", "locked", "all"}
+
 
 class ReviewError(Exception):
     pass
@@ -65,6 +67,43 @@ def create_review(mr_url, ticket_key=None, reviewer=None):
     db.session.commit()
     run_review(review)
     return review
+
+
+def sync_project(project=None, state=None, reviewer=None):
+    """Импорт всех MR проекта: новые MR анализируются, обновлённые (новый head_sha) и упавшие — перезапускаются.
+
+    Возвращает сводку {project, state, total, created, updated, skipped, failed}.
+    """
+    cfg = current_app.config
+    project = (project or cfg.get("GITLAB_PROJECT") or "").strip().strip("/")
+    if not project:
+        raise ReviewError("Не задан проект GitLab (GITLAB_PROJECT)")
+    state = (state or cfg.get("GITLAB_MR_STATE") or "all").lower()
+    if state not in MR_STATES:
+        raise ReviewError(f"Некорректное состояние MR: {state}")
+
+    mrs = get_gitlab_client(cfg).list_merge_requests(project, state)
+    summary = {"project": project, "state": state, "total": len(mrs),
+               "created": 0, "updated": 0, "skipped": 0, "failed": 0}
+    for mr in mrs:
+        review = (Review.query.filter_by(gitlab_project=project, mr_iid=mr["iid"])
+                  .order_by(Review.id.desc()).first())
+        if review is None:
+            review = Review(mr_url=mr["web_url"] or f"{project}/-/merge_requests/{mr['iid']}",
+                            gitlab_project=project, mr_iid=mr["iid"], reviewer=reviewer,
+                            status="pending")
+            db.session.add(review)
+            db.session.commit()
+            summary["created"] += 1
+        elif review.status == "done" and review.head_sha and review.head_sha == mr["head_sha"]:
+            summary["skipped"] += 1
+            continue
+        else:
+            summary["updated"] += 1
+        run_review(review)
+        if review.status == "failed":
+            summary["failed"] += 1
+    return summary
 
 
 def run_review(review):

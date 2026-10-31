@@ -65,6 +65,8 @@ npm run dev                            # http://localhost:5173, /api прокс�
 | `DATABASE_URL` | строка подключения к PostgreSQL |
 | `GITLAB_URL`, `GITLAB_TOKEN` | адрес self-hosted GitLab и токен с правом `read_api` |
 | `GITLAB_VERIFY_SSL` | `true` / `false` / путь к CA-бандлу внутреннего УЦ |
+| `GITLAB_PROJECT` | проект (`group/subgroup/project`), все MR которого импортируются кнопкой «Загрузить все MR» или командой `sync-mrs` |
+| `GITLAB_MR_STATE` | какие MR импортировать: `opened` / `merged` / `closed` / `all` (по умолчанию `all`) |
 | `GITLAB_MOCK` | `true` — вместо GitLab используется демо-MR из `app/fixtures/demo_mr.json` |
 | `TZ_PORTAL_MODE` | `stub` (заглушка из `app/fixtures/tz_stub.json`) или `http` |
 | `LLM_MODE` | `stub` (без вызовов модели) или `openai` (OpenAI-совместимый endpoint: vLLM / TGI / Ollama) |
@@ -112,6 +114,19 @@ npm run dev                            # http://localhost:5173, /api прокс�
 * Ожидаемый ответ — JSON-массив `[{"file", "line", "severity", "message", "suggestion"}]`.
   Парсер снимает обёртку ```json``` и блоки `<think>`. Если JSON в ответе нет, весь текст сохраняется
   как общее замечание к MR.
+
+## Импорт всех MR проекта
+
+Задайте `GITLAB_PROJECT` и нажмите «Загрузить все MR» на главной странице или запустите команду:
+
+```bash
+flask --app wsgi sync-mrs                          # проект и состояние берутся из .env
+flask --app wsgi sync-mrs --project bank/ibso --state opened
+```
+
+Повторный запуск не создаёт дубликатов. MR без новых коммитов пропускаются, поэтому команду можно
+повесить на cron. Анализ идёт синхронно: при первом импорте большого проекта каждый MR проходит
+линтер и модель по очереди.
 
 ## Как экономится контекст модели
 
@@ -163,6 +178,7 @@ npm run dev                            # http://localhost:5173, /api прокс�
 | GET | `/api/health` | режимы интеграций (демо / заглушки) |
 | GET | `/api/reviews?q=` | список ревью |
 | POST | `/api/reviews` | `{mr_url, ticket_key?, reviewer?}`: создать и сразу проанализировать |
+| POST | `/api/reviews/sync` | `{project?, state?, reviewer?}`: импорт всех MR проекта; новые анализируются, MR с новым head_sha перезапускаются, неизменённые пропускаются |
 | GET | `/api/reviews/:id` | ревью целиком: файлы, ханки, ТЗ, замечания |
 | PATCH | `/api/reviews/:id` | `{verdict, summary, reviewer}` |
 | POST | `/api/reviews/:id/rerun` | перезапустить анализ (если MR обновился); комментарии ревьюера сохраняются |

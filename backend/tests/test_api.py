@@ -36,3 +36,22 @@ def test_full_review_flow(client):
 def test_bad_url(client):
     r = client.post("/api/reviews", json={"mr_url": "not a url"})
     assert r.status_code == 400
+
+
+def test_sync_project_mrs(client):
+    r = client.post("/api/reviews/sync", json={})
+    assert r.status_code == 200
+    s = r.get_json()
+    assert (s["project"], s["total"], s["created"], s["failed"]) == ("bank/ibso", 1, 1, 0)
+
+    reviews = client.get("/api/reviews").get_json()
+    assert len(reviews) == 1 and reviews[0]["mr_iid"] == 1 and reviews[0]["status"] == "done"
+
+    # повторный импорт: MR не менялся — пропускается, дубликат не создаётся
+    s2 = client.post("/api/reviews/sync", json={}).get_json()
+    assert (s2["created"], s2["updated"], s2["skipped"]) == (0, 0, 1)
+    assert len(client.get("/api/reviews").get_json()) == 1
+
+
+def test_sync_bad_state(client):
+    assert client.post("/api/reviews/sync", json={"state": "whatever"}).status_code == 400

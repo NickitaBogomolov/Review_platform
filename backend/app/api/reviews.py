@@ -5,7 +5,7 @@ from ..linters import available_rules
 from ..models import Finding, Review, ReviewFile, Ticket
 from ..services.diff_utils import content_lines
 from ..services.gitlab_client import GitLabError
-from ..services.review_service import create_review, run_review, sync_ticket
+from ..services.review_service import ReviewError, create_review, run_review, sync_project, sync_ticket
 from ..services.tz_portal import TzPortalError
 from . import api_bp
 
@@ -32,6 +32,8 @@ def health():
     return jsonify(
         status="ok",
         gitlab_mock=cfg["GITLAB_MOCK"],
+        gitlab_project=cfg["GITLAB_PROJECT"] or None,
+        gitlab_mr_state=cfg["GITLAB_MR_STATE"],
         tz_portal_mode=cfg["TZ_PORTAL_MODE"],
         llm_mode=cfg["LLM_MODE"],
     )
@@ -65,6 +67,17 @@ def post_review():
     except GitLabError as exc:
         return _error(str(exc))
     return jsonify(review.to_dict()), 201
+
+
+@api_bp.post("/reviews/sync")
+def sync_reviews():
+    """Импорт всех MR проекта. {project?, state?, reviewer?}; по умолчанию GITLAB_PROJECT / GITLAB_MR_STATE."""
+    data = request.get_json(silent=True) or {}
+    try:
+        summary = sync_project(data.get("project"), data.get("state"), data.get("reviewer"))
+    except (GitLabError, ReviewError) as exc:
+        return _error(str(exc))
+    return jsonify(summary)
 
 
 @api_bp.get("/reviews/<int:review_id>")

@@ -40,6 +40,10 @@ class Config:
     GITLAB_VERIFY_SSL = _verify(os.getenv("GITLAB_VERIFY_SSL"))
     GITLAB_MOCK = _bool(os.getenv("GITLAB_MOCK"), default=False)
     GITLAB_TIMEOUT = int(os.getenv("GITLAB_TIMEOUT", "30"))
+    # проект, из которого импортируются все MR (group/subgroup/project)
+    GITLAB_PROJECT = os.getenv("GITLAB_PROJECT", "").strip().strip("/")
+    # какие MR импортировать: opened / merged / closed / all
+    GITLAB_MR_STATE = os.getenv("GITLAB_MR_STATE", "all").strip().lower()
 
     TZ_PORTAL_MODE = os.getenv("TZ_PORTAL_MODE", "stub")
     TZ_PORTAL_URL = os.getenv("TZ_PORTAL_URL", "").rstrip("/")
@@ -66,5 +70,7 @@ class TestConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite://"
     GITLAB_MOCK = True
+    GITLAB_PROJECT = "bank/ibso"
+    GITLAB_MR_STATE = "all"
     TZ_PORTAL_MODE = "stub"
     LLM_MODE = "stub"

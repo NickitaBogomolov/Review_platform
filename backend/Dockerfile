@@ -10,4 +10,5 @@ COPY . .
 
 EXPOSE 5000
 # Анализ MR синхронный (модель может отвечать долго) — поэтому большой timeout
-CMD ["sh", "-c", "flask db upgrade && gunicorn -w 2 --timeout 600 -b 0.0.0.0:5000 wsgi:app"]
+# seed-demo в демо-режиме кладёт заготовленный MR в пустую базу
+CMD ["sh", "-c", "flask db upgrade && flask seed-demo && gunicorn -w 2 --timeout 600 -b 0.0.0.0:5000 wsgi:app"]

@@ -38,10 +38,12 @@ class Config:
     GITLAB_URL = os.getenv("GITLAB_URL", "").rstrip("/")
     GITLAB_TOKEN = os.getenv("GITLAB_TOKEN", "")
     GITLAB_VERIFY_SSL = _verify(os.getenv("GITLAB_VERIFY_SSL"))
-    GITLAB_MOCK = _bool(os.getenv("GITLAB_MOCK"), default=False)
+    # по умолчанию демо-режим: вместо GitLab — заготовленный MR из app/fixtures/demo_mr.json
+    GITLAB_MOCK = _bool(os.getenv("GITLAB_MOCK"), default=True)
     GITLAB_TIMEOUT = int(os.getenv("GITLAB_TIMEOUT", "30"))
     # проект, из которого импортируются все MR (group/subgroup/project)
-    GITLAB_PROJECT = os.getenv("GITLAB_PROJECT", "").strip().strip("/")
+    GITLAB_PROJECT = (os.getenv("GITLAB_PROJECT", "").strip().strip("/")
+                      or ("demo/ibso" if GITLAB_MOCK else ""))
     # какие MR импортировать: opened / merged / closed / all
     GITLAB_MR_STATE = os.getenv("GITLAB_MR_STATE", "all").strip().lower()
 

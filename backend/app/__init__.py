@@ -32,6 +32,21 @@ def create_app(config_object=Config):
             "без изменений {skipped}, с ошибкой {failed}".format(**summary)
         )
 
+    @app.cli.command("seed-demo")
+    def seed_demo():
+        """В демо-режиме (GITLAB_MOCK) загрузить заготовленный MR, если в базе нет ни одного готового ревью."""
+        from .models import Review
+        from .services.review_service import sync_project
+
+        if not app.config["GITLAB_MOCK"]:
+            click.echo("GITLAB_MOCK выключен — демо-данные не загружаются")
+            return
+        if Review.query.filter_by(status="done").first() is not None:
+            click.echo("В базе уже есть готовые ревью — демо-данные не загружаются")
+            return
+        summary = sync_project()
+        click.echo("Загружен демо-пример: {project}, MR: {total}".format(**summary))
+
     @app.errorhandler(404)
     def not_found(_):
         return jsonify(error="Не найдено"), 404

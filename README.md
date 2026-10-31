@@ -34,8 +34,10 @@ cp backend/.env.example backend/.env   # по умолчанию включён 
 docker compose up --build
 ```
 
-UI: http://localhost:8080. Вставьте любую ссылку вида `https://gitlab.../group/project/-/merge_requests/1`.
-В демо-режиме загрузится тестовый MR `RCK2-3232` с операциями на PL/PLUS.
+UI: http://localhost:8080. По умолчанию включён демо-режим: при первом старте в базу сам загружается
+заготовленный MR `RCK2-3232` с операциями на PL/PLUS (сверка с ТЗ, замечания линтера и т.д.), так что
+список ревью сразу не пустой. Любая ссылка вида `https://gitlab.../group/project/-/merge_requests/1`
+в этом режиме тоже откроет демо-MR. Для работы с настоящим GitLab задайте `GITLAB_MOCK=false`.
 
 ### Локально (для разработки)
 
@@ -49,6 +51,7 @@ python -m venv .venv && . .venv/bin/activate
 pip install -r requirements-dev.txt
 cp .env.example .env
 flask --app wsgi db upgrade
+flask --app wsgi seed-demo            # демо-MR в пустую базу (только при GITLAB_MOCK=true)
 flask --app wsgi run --debug          # http://localhost:5000
 pytest                                 # тесты (SQLite in-memory, БД не нужна)
 
@@ -67,7 +70,7 @@ npm run dev                            # http://localhost:5173, /api прокс�
 | `GITLAB_VERIFY_SSL` | `true` / `false` / путь к CA-бандлу внутреннего УЦ |
 | `GITLAB_PROJECT` | проект (`group/subgroup/project`), все MR которого импортируются кнопкой «Загрузить все MR» или командой `sync-mrs` |
 | `GITLAB_MR_STATE` | какие MR импортировать: `opened` / `merged` / `closed` / `all` (по умолчанию `all`) |
-| `GITLAB_MOCK` | `true` — вместо GitLab используется демо-MR из `app/fixtures/demo_mr.json` |
+| `GITLAB_MOCK` | `true` (по умолчанию) — вместо GitLab используется демо-MR из `app/fixtures/demo_mr.json` |
 | `TZ_PORTAL_MODE` | `stub` (заглушка из `app/fixtures/tz_stub.json`) или `http` |
 | `LLM_MODE` | `stub` (без вызовов модели) или `openai` (OpenAI-совместимый endpoint: vLLM / TGI / Ollama) |
 | `LLM_API_URL`, `LLM_MODEL`, `LLM_API_KEY` | параметры модели |

@@ -1,0 +1,606 @@
+{
+  "lint_rules": [
+    {
+      "pattern": "\\bdbms_lock\\s*\\.\\s*sleep\\b",
+      "message": "Не используйте dbms_lock.sleep в пакетных операциях: задача будет держать ресурсы впустую",
+      "severity": "critical",
+      "scope": "code",
+      "enabled": true
+    },
+    {
+      "pattern": "временн|костыл",
+      "message": "В коде осталась пометка о временном решении — уточните, можно ли нести её в тест",
+      "severity": "major",
+      "scope": "raw",
+      "enabled": true
+    },
+    {
+      "pattern": "\\bsysdate\\b",
+      "message": "Используйте дату операционного дня вместо sysdate",
+      "severity": "minor",
+      "scope": "code",
+      "enabled": false
+    }
+  ],
+  "merge_requests": [
+    {
+      "iid": 2,
+      "merge_request": {
+        "title": "RCK2-3435 Минимальная ставка вклада [демо: cherry-pick, всё совпало]",
+        "description": "Перенос из develop_dev через cherry-pick. В develop_dev 4 коммита, один из них откатывает отладку.\n\nОжидается: сверка ✓ Совпадает. Объект ТЗ CLOSE_DEPOSIT не изменён, но это не ошибка.",
+        "author": "Сидоров А.В.",
+        "state": "opened",
+        "source_branch": "RCK2-3435-tst",
+        "target_branch": "develop_tst",
+        "base_sha": "b002000000000000000000000000000000000000",
+        "head_sha": "e002000000000000000000000000000000000000"
+      },
+      "files": [
+        {
+          "old_path": "src/DEPOSIT/CALC_PERCENT.plp",
+          "new_path": "src/DEPOSIT/CALC_PERCENT.plp",
+          "change_type": "modified",
+          "old": [
+            "-- Операция: Расчёт процентов по вкладу",
+            "procedure CALC_PERCENT(P_DATE date) is",
+            "\tl_rate number;",
+            "begin",
+            "\tl_rate := [RATE];",
+            "\t[PERCENT_SUM] := round([SALDO] * l_rate / 100, 2);",
+            "end;"
+          ],
+          "new": [
+            "-- Операция: Расчёт процентов по вкладу",
+            "procedure CALC_PERCENT(P_DATE date) is",
+            "\tl_rate number;",
+            "begin",
+            "\tl_rate := greatest([RATE], [MIN_RATE]);",
+            "\tif l_rate is null then",
+            "\t\tpragma error('Не задана ставка вклада');",
+            "\tend if;",
+            "\t[PERCENT_SUM] := round([SALDO] * l_rate / 100, 2);",
+            "end;"
+          ]
+        }
+      ]
+    },
+    {
+      "iid": 3,
+      "merge_request": {
+        "title": "RCK2-3501 Округление графика [демо: ручной перенос, другие отступы]",
+        "description": "Правки перенесены руками одним коммитом: другие отступы и порядок, нет пустой строки.\n\nОжидается: сверка ✓ Совпадает, пробелы расхождением не считаются.",
+        "author": "Иванов И.И.",
+        "state": "opened",
+        "source_branch": "RCK2-3501-tst",
+        "target_branch": "develop_tst",
+        "base_sha": "b003000000000000000000000000000000000000",
+        "head_sha": "e003000000000000000000000000000000000000"
+      },
+      "files": [
+        {
+          "old_path": "src/LOAN/CALC_SCHEDULE.plp",
+          "new_path": "src/LOAN/CALC_SCHEDULE.plp",
+          "change_type": "modified",
+          "old": [
+            "procedure CALC_SCHEDULE is",
+            "begin",
+            "    l_sum := [SUM] / [TERM];",
+            "end;"
+          ],
+          "new": [
+            "procedure CALC_SCHEDULE is",
+            "begin",
+            "    l_sum := [SUM] / [TERM];",
+            "    l_cnt   := l_cnt + 1;",
+            "    l_sum := round(l_sum, 2);",
+            "end;"
+          ]
+        }
+      ]
+    },
+    {
+      "iid": 4,
+      "merge_request": {
+        "title": "RCK2-3502 Лимит платежа [демо: ошибки ручного переноса]",
+        "description": "Что здесь не так: опечатка в лимите (10000 вместо 100000), потерян вызов CHECK_LIMIT, не перенесён файл LOG_PAYMENT, случайно попал чужой файл UPD_PHONE.\n\nОжидается: расхождения в сверке с develop_dev и +1 лишний файл по ТЗ.",
+        "author": "Петрова Н.С.",
+        "state": "opened",
+        "source_branch": "RCK2-3502-tst",
+        "target_branch": "develop_tst",
+        "base_sha": "b004000000000000000000000000000000000000",
+        "head_sha": "e004000000000000000000000000000000000000"
+      },
+      "files": [
+        {
+          "old_path": "src/PAYMENT/SEND_PAYMENT.plp",
+          "new_path": "src/PAYMENT/SEND_PAYMENT.plp",
+          "change_type": "modified",
+          "old": [
+            "procedure SEND_PAYMENT(P_SUM number) is",
+            "begin",
+            "\tl_sum := P_SUM;",
+            "\t[STATE] := 'SENT';",
+            "end;"
+          ],
+          "new": [
+            "procedure SEND_PAYMENT(P_SUM number) is",
+            "begin",
+            "\tl_sum := P_SUM;",
+            "\tl_limit := 10000;",
+            "\t[CHECKED] := 1;",
+            "\t[STATE] := 'SENT';",
+            "end;"
+          ]
+        },
+        {
+          "old_path": "src/CLIENT/UPD_PHONE.plp",
+          "new_path": "src/CLIENT/UPD_PHONE.plp",
+          "change_type": "modified",
+          "old": [
+            "procedure UPD_PHONE(P_PHONE varchar2) is",
+            "begin",
+            "\t[PHONE] := P_PHONE;",
+            "end;"
+          ],
+          "new": [
+            "procedure UPD_PHONE(P_PHONE varchar2) is",
+            "begin",
+            "\t[PHONE] := trim(P_PHONE);",
+            "end;"
+          ]
+        }
+      ]
+    },
+    {
+      "iid": 5,
+      "merge_request": {
+        "title": "RCK2-3510 Блокировка карты [демо: второй MR по тикету]",
+        "description": "OPEN_CARD уже доехал до develop_tst предыдущим MR, этот MR несёт только BLOCK_CARD.\n\nОжидается: ✓ Совпадает, OPEN_CARD со статусом «уже применено».",
+        "author": "Сидоров А.В.",
+        "state": "opened",
+        "source_branch": "RCK2-3510-part2",
+        "target_branch": "develop_tst",
+        "base_sha": "b005000000000000000000000000000000000000",
+        "head_sha": "e005000000000000000000000000000000000000"
+      },
+      "files": [
+        {
+          "old_path": "src/CARD/BLOCK_CARD.plp",
+          "new_path": "src/CARD/BLOCK_CARD.plp",
+          "change_type": "modified",
+          "old": [
+            "procedure BLOCK_CARD is",
+            "begin",
+            "\t[STATE] := 'BLOCKED';",
+            "end;"
+          ],
+          "new": [
+            "procedure BLOCK_CARD is",
+            "begin",
+            "\t[STATE] := 'BLOCKED';",
+            "\t[BLOCK_DATE] := P_DATE;",
+            "end;"
+          ]
+        }
+      ]
+    },
+    {
+      "iid": 6,
+      "merge_request": {
+        "title": "RCK2-3620 Закрытие счёта [демо: MR уже влит]",
+        "description": "MR влит, его коммит уже есть в develop_tst.\n\nОжидается: ✓ Совпадает, правки MR не считаются дважды.",
+        "author": "Иванов И.И.",
+        "state": "merged",
+        "source_branch": "RCK2-3620-tst",
+        "target_branch": "develop_tst",
+        "base_sha": "b006000000000000000000000000000000000000",
+        "head_sha": "e006000000000000000000000000000000000000"
+      },
+      "files": [
+        {
+          "old_path": "src/ACC/CLOSE_ACC.plp",
+          "new_path": "src/ACC/CLOSE_ACC.plp",
+          "change_type": "modified",
+          "old": [
+            "procedure CLOSE_ACC is",
+            "begin",
+            "\t[STATE] := 'CLOSED';",
+            "end;"
+          ],
+          "new": [
+            "procedure CLOSE_ACC is",
+            "begin",
+            "\tCHECK_SALDO_ZERO;",
+            "\t[STATE] := 'CLOSED';",
+            "\t[CLOSE_DATE] := P_DATE;",
+            "end;"
+          ]
+        }
+      ]
+    },
+    {
+      "iid": 7,
+      "merge_request": {
+        "title": "RCK2-3700 Выгрузка отчёта [демо: в develop_dev нет коммитов тикета]",
+        "description": "Правку сделали сразу для develop_tst, минуя develop_dev.\n\nОжидается: предупреждение «нет коммитов» и файл со статусом «нет в develop_dev».",
+        "author": "Петрова Н.С.",
+        "state": "opened",
+        "source_branch": "RCK2-3700-tst",
+        "target_branch": "develop_tst",
+        "base_sha": "b007000000000000000000000000000000000000",
+        "head_sha": "e007000000000000000000000000000000000000"
+      },
+      "files": [
+        {
+          "old_path": "src/REP/EXPORT_REPORT.plp",
+          "new_path": "src/REP/EXPORT_REPORT.plp",
+          "change_type": "modified",
+          "old": [
+            "procedure EXPORT_REPORT is",
+            "begin",
+            "\tl_name := 'report.csv';",
+            "end;"
+          ],
+          "new": [
+            "procedure EXPORT_REPORT is",
+            "begin",
+            "\tl_name := 'report_v2.csv';",
+            "end;"
+          ]
+        }
+      ]
+    },
+    {
+      "iid": 8,
+      "merge_request": {
+        "title": "RCK2-3600 Текст SMS [демо: MR в develop_dev, сверки нет]",
+        "description": "MR идёт в develop_dev, а не в develop_tst.\n\nОжидается: панели сверки веток нет, остальные проверки работают.",
+        "author": "Сидоров А.В.",
+        "state": "opened",
+        "source_branch": "RCK2-3600",
+        "target_branch": "develop_dev",
+        "base_sha": "b008000000000000000000000000000000000000",
+        "head_sha": "e008000000000000000000000000000000000000"
+      },
+      "files": [
+        {
+          "old_path": "src/SMS/SEND_SMS.plp",
+          "new_path": "src/SMS/SEND_SMS.plp",
+          "change_type": "modified",
+          "old": [
+            "procedure SEND_SMS is",
+            "begin",
+            "\tl_text := 'Операция выполнена';",
+            "end;"
+          ],
+          "new": [
+            "procedure SEND_SMS is",
+            "begin",
+            "\tl_text := 'Операция успешно выполнена';",
+            "end;"
+          ]
+        }
+      ]
+    },
+    {
+      "iid": 9,
+      "merge_request": {
+        "title": "RCK2-3800 Расчёт сбора [демо: в ветках разный исходный код]",
+        "description": "Добавленная строка совпадает, но заменялись разные строки: в develop_dev было 10, в develop_tst было 15.\n\nОжидается: «отличается», в списках только разные удалённые строки. Это нужно посмотреть глазами.",
+        "author": "Иванов И.И.",
+        "state": "opened",
+        "source_branch": "RCK2-3800-tst",
+        "target_branch": "develop_tst",
+        "base_sha": "b009000000000000000000000000000000000000",
+        "head_sha": "e009000000000000000000000000000000000000"
+      },
+      "files": [
+        {
+          "old_path": "src/FEE/CALC_FEE.plp",
+          "new_path": "src/FEE/CALC_FEE.plp",
+          "change_type": "modified",
+          "old": [
+            "procedure CALC_FEE is",
+            "begin",
+            "\tl_fee := 15;",
+            "end;"
+          ],
+          "new": [
+            "procedure CALC_FEE is",
+            "begin",
+            "\tl_fee := GET_FEE([TARIFF]);",
+            "end;"
+          ]
+        }
+      ]
+    },
+    {
+      "iid": 10,
+      "merge_request": {
+        "title": "RCK2-3900 Пакетный запуск [демо: свои правила линтера]",
+        "description": "Здесь срабатывают правила с вкладки «Линтеры»: USR001 на dbms_lock.sleep (но не на текст в кавычках) и USR002 на комментарий. USR003 выключено: включите его и перезапустите анализ — появится замечание на sysdate.",
+        "author": "Петрова Н.С.",
+        "state": "opened",
+        "source_branch": "RCK2-3900-tst",
+        "target_branch": "develop_tst",
+        "base_sha": "b010000000000000000000000000000000000000",
+        "head_sha": "e010000000000000000000000000000000000000"
+      },
+      "files": [
+        {
+          "old_path": "src/BATCH/RUN_BATCH.plp",
+          "new_path": "src/BATCH/RUN_BATCH.plp",
+          "change_type": "modified",
+          "old": [
+            "procedure RUN_BATCH is",
+            "begin",
+            "\tPROCESS_QUEUE;",
+            "end;"
+          ],
+          "new": [
+            "procedure RUN_BATCH is",
+            "begin",
+            "\t-- временно: ждём, пока освободится очередь",
+            "\tdbms_lock.sleep(5);",
+            "\tl_note := 'dbms_lock.sleep здесь только текст';",
+            "\tl_date := sysdate;",
+            "\tPROCESS_QUEUE;",
+            "end;"
+          ]
+        }
+      ]
+    }
+  ],
+  "dev_commits": [
+    {
+      "id": "3435000500000000000000000000000000000000",
+      "message": "Merge branch 'RCK2-3435' into 'develop_dev'\n\nRCK2-3435 Минимальная ставка вклада\n\nSee merge request demo/ibso!52",
+      "parent_ids": ["3435000000000000000000000000000000000000", "3435000400000000000000000000000000000000"],
+      "author": "Сидоров А.В.",
+      "created_at": "2026-10-20T18:00:00+03:00",
+      "files": []
+    },
+    {
+      "id": "3435000400000000000000000000000000000000",
+      "message": "RCK2-3435 Проверка, что ставка задана",
+      "parent_ids": ["3435000300000000000000000000000000000000"],
+      "author": "Сидоров А.В.",
+      "created_at": "2026-10-20T17:00:00+03:00",
+      "files": [
+        {
+          "old_path": "src/DEPOSIT/CALC_PERCENT.plp",
+          "new_path": "src/DEPOSIT/CALC_PERCENT.plp",
+          "change_type": "modified",
+          "old": ["\tl_rate := greatest([RATE], [MIN_RATE]);", "\t[PERCENT_SUM] := round([SALDO] * l_rate / 100, 2);"],
+          "new": ["\tl_rate := greatest([RATE], [MIN_RATE]);", "\tif l_rate is null then", "\t\tpragma error('Не задана ставка вклада');", "\tend if;", "\t[PERCENT_SUM] := round([SALDO] * l_rate / 100, 2);"]
+        }
+      ]
+    },
+    {
+      "id": "3435000300000000000000000000000000000000",
+      "message": "RCK2-3435 Убрал отладку",
+      "parent_ids": ["3435000200000000000000000000000000000000"],
+      "author": "Сидоров А.В.",
+      "created_at": "2026-10-20T16:00:00+03:00",
+      "files": [
+        {
+          "old_path": "src/DEPOSIT/CALC_PERCENT.plp",
+          "new_path": "src/DEPOSIT/CALC_PERCENT.plp",
+          "change_type": "modified",
+          "old": ["\tl_rate := greatest([RATE], [MIN_RATE]);", "\tdebug_pipe('rate=' || l_rate, 0);", "\t[PERCENT_SUM] := round([SALDO] * l_rate / 100, 2);"],
+          "new": ["\tl_rate := greatest([RATE], [MIN_RATE]);", "\t[PERCENT_SUM] := round([SALDO] * l_rate / 100, 2);"]
+        }
+      ]
+    },
+    {
+      "id": "3435000200000000000000000000000000000000",
+      "message": "RCK2-3435 Отладочный вывод ставки",
+      "parent_ids": ["3435000100000000000000000000000000000000"],
+      "author": "Сидоров А.В.",
+      "created_at": "2026-10-20T15:00:00+03:00",
+      "files": [
+        {
+          "old_path": "src/DEPOSIT/CALC_PERCENT.plp",
+          "new_path": "src/DEPOSIT/CALC_PERCENT.plp",
+          "change_type": "modified",
+          "old": ["\tl_rate := greatest([RATE], [MIN_RATE]);", "\t[PERCENT_SUM] := round([SALDO] * l_rate / 100, 2);"],
+          "new": ["\tl_rate := greatest([RATE], [MIN_RATE]);", "\tdebug_pipe('rate=' || l_rate, 0);", "\t[PERCENT_SUM] := round([SALDO] * l_rate / 100, 2);"]
+        }
+      ]
+    },
+    {
+      "id": "3435000100000000000000000000000000000000",
+      "message": "RCK2-3435 Минимальная ставка вклада",
+      "parent_ids": ["3435000000000000000000000000000000000000"],
+      "author": "Сидоров А.В.",
+      "created_at": "2026-10-20T14:00:00+03:00",
+      "files": [
+        {
+          "old_path": "src/DEPOSIT/CALC_PERCENT.plp",
+          "new_path": "src/DEPOSIT/CALC_PERCENT.plp",
+          "change_type": "modified",
+          "old": ["\tl_rate := [RATE];"],
+          "new": ["\tl_rate := greatest([RATE], [MIN_RATE]);"]
+        }
+      ]
+    },
+    {
+      "id": "3501000200000000000000000000000000000000",
+      "message": "RCK2-3501 Счётчик платежей",
+      "parent_ids": ["3501000100000000000000000000000000000000"],
+      "author": "Иванов И.И.",
+      "created_at": "2026-10-21T12:00:00+03:00",
+      "files": [
+        {
+          "old_path": "src/LOAN/CALC_SCHEDULE.plp",
+          "new_path": "src/LOAN/CALC_SCHEDULE.plp",
+          "change_type": "modified",
+          "old": ["\tl_sum := round(l_sum, 2);", "end;"],
+          "new": ["\tl_sum := round(l_sum, 2);", "", "\tl_cnt := l_cnt + 1;", "end;"]
+        }
+      ]
+    },
+    {
+      "id": "3501000100000000000000000000000000000000",
+      "message": "RCK2-3501 Округление суммы платежа",
+      "parent_ids": ["3501000000000000000000000000000000000000"],
+      "author": "Иванов И.И.",
+      "created_at": "2026-10-21T11:00:00+03:00",
+      "files": [
+        {
+          "old_path": "src/LOAN/CALC_SCHEDULE.plp",
+          "new_path": "src/LOAN/CALC_SCHEDULE.plp",
+          "change_type": "modified",
+          "old": ["\tl_sum := [SUM] / [TERM];", "end;"],
+          "new": ["\tl_sum := [SUM] / [TERM];", "\tl_sum := round(l_sum, 2);", "end;"]
+        }
+      ]
+    },
+    {
+      "id": "3502000200000000000000000000000000000000",
+      "message": "RCK2-3502 Журнал отправки платежей",
+      "parent_ids": ["3502000100000000000000000000000000000000"],
+      "author": "Петрова Н.С.",
+      "created_at": "2026-10-22T12:00:00+03:00",
+      "files": [
+        {
+          "old_path": "src/PAYMENT/LOG_PAYMENT.plp",
+          "new_path": "src/PAYMENT/LOG_PAYMENT.plp",
+          "change_type": "modified",
+          "old": ["begin", "end;"],
+          "new": ["begin", "\tWRITE_LOG([ID], l_limit);", "end;"]
+        }
+      ]
+    },
+    {
+      "id": "3502000100000000000000000000000000000000",
+      "message": "RCK2-3502 Лимит платежа",
+      "parent_ids": ["3502000000000000000000000000000000000000"],
+      "author": "Петрова Н.С.",
+      "created_at": "2026-10-22T11:00:00+03:00",
+      "files": [
+        {
+          "old_path": "src/PAYMENT/SEND_PAYMENT.plp",
+          "new_path": "src/PAYMENT/SEND_PAYMENT.plp",
+          "change_type": "modified",
+          "old": ["\tl_sum := P_SUM;", "\t[STATE] := 'SENT';"],
+          "new": ["\tl_sum := P_SUM;", "\tl_limit := 100000;", "\tCHECK_LIMIT(l_sum, l_limit);", "\t[CHECKED] := 1;", "\t[STATE] := 'SENT';"]
+        }
+      ]
+    },
+    {
+      "id": "3510000200000000000000000000000000000000",
+      "message": "RCK2-3510 Дата блокировки карты",
+      "parent_ids": ["3510000100000000000000000000000000000000"],
+      "author": "Сидоров А.В.",
+      "created_at": "2026-10-23T12:00:00+03:00",
+      "files": [{"from_mr": "src/CARD/BLOCK_CARD.plp"}]
+    },
+    {
+      "id": "3510000100000000000000000000000000000000",
+      "message": "RCK2-3510 Лимит при открытии карты",
+      "parent_ids": ["3510000000000000000000000000000000000000"],
+      "author": "Сидоров А.В.",
+      "created_at": "2026-10-23T11:00:00+03:00",
+      "files": [
+        {
+          "old_path": "src/CARD/OPEN_CARD.plp",
+          "new_path": "src/CARD/OPEN_CARD.plp",
+          "change_type": "modified",
+          "old": ["begin", "end;"],
+          "new": ["begin", "\t[DAY_LIMIT] := 50000;", "end;"]
+        }
+      ]
+    },
+    {
+      "id": "3620000200000000000000000000000000000000",
+      "message": "RCK2-3620 Дата закрытия счёта",
+      "parent_ids": ["3620000100000000000000000000000000000000"],
+      "author": "Иванов И.И.",
+      "created_at": "2026-10-24T12:00:00+03:00",
+      "files": [
+        {
+          "old_path": "src/ACC/CLOSE_ACC.plp",
+          "new_path": "src/ACC/CLOSE_ACC.plp",
+          "change_type": "modified",
+          "old": ["\t[STATE] := 'CLOSED';", "end;"],
+          "new": ["\t[STATE] := 'CLOSED';", "\t[CLOSE_DATE] := P_DATE;", "end;"]
+        }
+      ]
+    },
+    {
+      "id": "3620000100000000000000000000000000000000",
+      "message": "RCK2-3620 Проверка нулевого остатка",
+      "parent_ids": ["3620000000000000000000000000000000000000"],
+      "author": "Иванов И.И.",
+      "created_at": "2026-10-24T11:00:00+03:00",
+      "files": [
+        {
+          "old_path": "src/ACC/CLOSE_ACC.plp",
+          "new_path": "src/ACC/CLOSE_ACC.plp",
+          "change_type": "modified",
+          "old": ["begin", "\t[STATE] := 'CLOSED';"],
+          "new": ["begin", "\tCHECK_SALDO_ZERO;", "\t[STATE] := 'CLOSED';"]
+        }
+      ]
+    },
+    {
+      "id": "3800000100000000000000000000000000000000",
+      "message": "RCK2-3800 Сбор из тарифа",
+      "parent_ids": ["3800000000000000000000000000000000000000"],
+      "author": "Иванов И.И.",
+      "created_at": "2026-10-25T11:00:00+03:00",
+      "files": [
+        {
+          "old_path": "src/FEE/CALC_FEE.plp",
+          "new_path": "src/FEE/CALC_FEE.plp",
+          "change_type": "modified",
+          "old": ["\tl_fee := 10;"],
+          "new": ["\tl_fee := GET_FEE([TARIFF]);"]
+        }
+      ]
+    },
+    {
+      "id": "3900000100000000000000000000000000000000",
+      "message": "RCK2-3900 Ожидание очереди в пакетном запуске",
+      "parent_ids": ["3900000000000000000000000000000000000000"],
+      "author": "Петрова Н.С.",
+      "created_at": "2026-10-26T11:00:00+03:00",
+      "files": [{"from_mr": "src/BATCH/RUN_BATCH.plp"}]
+    }
+  ],
+  "tst_commits": [
+    {
+      "id": "7510000100000000000000000000000000000000",
+      "message": "RCK2-3510 Лимит при открытии карты",
+      "parent_ids": ["7510000000000000000000000000000000000000"],
+      "author": "Сидоров А.В.",
+      "created_at": "2026-10-27T11:00:00+03:00",
+      "files": [
+        {
+          "old_path": "src/CARD/OPEN_CARD.plp",
+          "new_path": "src/CARD/OPEN_CARD.plp",
+          "change_type": "modified",
+          "old": ["begin", "end;"],
+          "new": ["begin", "\t[DAY_LIMIT] := 50000;", "end;"]
+        }
+      ]
+    },
+    {
+      "id": "7620000200000000000000000000000000000000",
+      "message": "Merge branch 'RCK2-3620-tst' into 'develop_tst'\n\nRCK2-3620 Закрытие счёта\n\nSee merge request demo/ibso!6",
+      "parent_ids": ["7620000000000000000000000000000000000000", "7620000100000000000000000000000000000000"],
+      "author": "Иванов И.И.",
+      "created_at": "2026-10-28T12:00:00+03:00",
+      "files": []
+    },
+    {
+      "id": "7620000100000000000000000000000000000000",
+      "message": "RCK2-3620 Закрытие счёта",
+      "parent_ids": ["7620000000000000000000000000000000000000"],
+      "author": "Иванов И.И.",
+      "created_at": "2026-10-28T11:00:00+03:00",
+      "files": [{"from_mr": "src/ACC/CLOSE_ACC.plp"}]
+    }
+  ]
+}

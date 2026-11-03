@@ -28,6 +28,11 @@ export const api = {
   addComment: (id, payload) => request('POST', `/reviews/${id}/comments`, payload),
   updateFinding: (fid, payload) => request('PATCH', `/findings/${fid}`, payload),
   deleteFinding: (fid) => request('DELETE', `/findings/${fid}`),
+  lintRules: () => request('GET', '/lint-rules'),
+  listCustomRules: () => request('GET', '/custom-lint-rules'),
+  createCustomRule: (payload) => request('POST', '/custom-lint-rules', payload),
+  updateCustomRule: (id, payload) => request('PATCH', `/custom-lint-rules/${id}`, payload),
+  deleteCustomRule: (id) => request('DELETE', `/custom-lint-rules/${id}`),
 }
 
 export const reviewerName = {

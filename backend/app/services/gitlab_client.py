@@ -88,6 +88,7 @@ class GitLabClient:
         refs = mr.get("diff_refs") or {}
         return {
             "title": mr.get("title"),
+            "state": mr.get("state"),
             "description": mr.get("description"),
             "author": (mr.get("author") or {}).get("name"),
             "source_branch": mr.get("source_branch"),
@@ -203,38 +204,60 @@ class GitLabClient:
 
 
 class FixtureGitLabClient:
-    """Отдаёт демо-MR из app/fixtures/demo_mr.json на любую ссылку. Включается GITLAB_MOCK=true."""
+    """Демо-данные вместо GitLab. Включается GITLAB_MOCK=true.
 
-    def __init__(self, path=None):
-        path = path or os.path.join(os.path.dirname(__file__), "..", "fixtures", "demo_mr.json")
-        with open(path, encoding="utf-8") as fh:
-            self.data = json.load(fh)
+    app/fixtures/demo_mr.json — MR !1, app/fixtures/demo_scenarios.json — остальные демо-сценарии.
+    Ссылка с неизвестным номером MR открывает MR !1.
+    """
 
-    def get_merge_request(self, project, iid):
-        mr = dict(self.data["merge_request"])
-        mr["web_url"] = f"mock://{project}/-/merge_requests/{iid}"
-        return mr
+    def __init__(self):
+        fixtures = os.path.join(os.path.dirname(__file__), "..", "fixtures")
+        with open(os.path.join(fixtures, "demo_mr.json"), encoding="utf-8") as fh:
+            demo = json.load(fh)
+        with open(os.path.join(fixtures, "demo_scenarios.json"), encoding="utf-8") as fh:
+            scenarios = json.load(fh)
+        self.mrs = [{"iid": 1, **demo}] + scenarios["merge_requests"]
+        self.branches = {
+            "develop_dev": demo["dev_commits"] + scenarios["dev_commits"],
+            "develop_tst": scenarios["tst_commits"],
+        }
 
-    def list_merge_requests(self, project, state="all"):
-        mr = self.data["merge_request"]
-        if state not in ("all", "opened"):
-            return []
-        return [{"iid": 1, "title": mr["title"], "state": "opened", "head_sha": mr["head_sha"],
-                 "web_url": f"mock://{project}/-/merge_requests/1"}]
+    def _mr(self, iid):
+        return next((m for m in self.mrs if m["iid"] == iid), self.mrs[0])
 
-    def get_merge_request_changes(self, project, iid):
-        result = []
-        for f in self.data["files"]:
-            result.append({
+    @staticmethod
+    def _changes(files):
+        return [
+            {
                 "old_path": f.get("old_path") or f.get("new_path"),
                 "new_path": f.get("new_path") or f.get("old_path"),
                 "change_type": f["change_type"],
                 "diff": make_unified_diff("\n".join(f.get("old", [])), "\n".join(f.get("new", []))),
                 "too_large": False,
-            })
+            }
+            for f in files
+        ]
+
+    def get_merge_request(self, project, iid):
+        mr = {"state": "opened", **self._mr(iid)["merge_request"]}
+        mr["web_url"] = f"mock://{project}/-/merge_requests/{iid}"
+        return mr
+
+    def list_merge_requests(self, project, state="all"):
+        result = []
+        for m in self.mrs:
+            mr = m["merge_request"]
+            mr_state = mr.get("state", "opened")
+            if state in ("all", mr_state):
+                result.append({"iid": m["iid"], "title": mr["title"], "state": mr_state, "head_sha": mr["head_sha"],
+                               "web_url": f"mock://{project}/-/merge_requests/{m['iid']}"})
         return result
 
+    def get_merge_request_changes(self, project, iid):
+        return self._changes(self._mr(iid)["files"])
+
     def list_branch_commits(self, project, branch, limit=5000):
+        commits = sorted(self.branches.get(branch, []), key=lambda c: c["created_at"], reverse=True)
         return [
             {
                 "id": c["id"],
@@ -246,37 +269,32 @@ class FixtureGitLabClient:
                 "created_at": c.get("created_at"),
                 "web_url": None,
             }
-            for c in self.data.get("dev_commits", [])
+            for c in commits
         ][:limit]
 
     def get_commit_changes(self, project, sha):
-        commit = next((c for c in self.data.get("dev_commits", []) if c["id"] == sha), None)
+        commits = [c for branch in self.branches.values() for c in branch]
+        commit = next((c for c in commits if c["id"] == sha), None)
         if commit is None:
             raise GitLabError(f"Коммит {sha} в проекте {project} не найден")
-        mr_files = {f.get("new_path"): f for f in self.data["files"]}
-        result = []
-        for f in commit["files"]:
-            # from_mr — коммит содержит ровно те же правки файла, что и демо-MR
-            f = mr_files[f["from_mr"]] if "from_mr" in f else f
-            result.append({
-                "old_path": f.get("old_path") or f.get("new_path"),
-                "new_path": f.get("new_path") or f.get("old_path"),
-                "change_type": f["change_type"],
-                "diff": make_unified_diff("\n".join(f.get("old", [])), "\n".join(f.get("new", []))),
-                "too_large": False,
-            })
-        return result
+        mr_files = {f.get("new_path"): f for m in self.mrs for f in m["files"]}
+        # from_mr — коммит содержит ровно те же правки файла, что и демо-MR
+        return self._changes([mr_files[f["from_mr"]] if "from_mr" in f else f for f in commit["files"]])
 
     def get_file_content(self, project, path, ref):
-        side = "old" if ref == self.data["merge_request"]["base_sha"] else "new"
-        for f in self.data["files"]:
-            key = "old_path" if side == "old" else "new_path"
-            if (f.get(key) or f.get("new_path") or f.get("old_path")) == path:
-                lines = f.get(side)
-                if not lines and ((side == "old" and f["change_type"] == "added")
-                                  or (side == "new" and f["change_type"] == "deleted")):
-                    return None
-                return "\n".join(lines) + "\n"
+        for m in self.mrs:
+            mr = m["merge_request"]
+            if ref not in (mr["base_sha"], mr["head_sha"]):
+                continue
+            side = "old" if ref == mr["base_sha"] else "new"
+            for f in m["files"]:
+                key = "old_path" if side == "old" else "new_path"
+                if (f.get(key) or f.get("new_path") or f.get("old_path")) == path:
+                    lines = f.get(side)
+                    if not lines and ((side == "old" and f["change_type"] == "added")
+                                      or (side == "new" and f["change_type"] == "deleted")):
+                        return None
+                    return "\n".join(lines) + "\n"
         return None
 
 

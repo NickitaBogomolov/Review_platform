@@ -34,18 +34,14 @@ def create_app(config_object=Config):
 
     @app.cli.command("seed-demo")
     def seed_demo():
-        """В демо-режиме (GITLAB_MOCK) загрузить заготовленный MR, если в базе нет ни одного готового ревью."""
-        from .models import Review
-        from .services.review_service import sync_project
+        """В демо-режиме (GITLAB_MOCK) загрузить демо-MR и примеры правил линтера. Запускать можно повторно."""
+        from .services.review_service import seed_demo_data
 
         if not app.config["GITLAB_MOCK"]:
             click.echo("GITLAB_MOCK выключен — демо-данные не загружаются")
             return
-        if Review.query.filter_by(status="done").first() is not None:
-            click.echo("В базе уже есть готовые ревью — демо-данные не загружаются")
-            return
-        summary = sync_project()
-        click.echo("Загружен демо-пример: {project}, MR: {total}".format(**summary))
+        summary = seed_demo_data()
+        click.echo("Демо-данные: {project}, MR: {total}, новых: {created}".format(**summary))
 
     @app.errorhandler(404)
     def not_found(_):

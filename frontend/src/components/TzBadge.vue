@@ -1,12 +1,8 @@
 <template>
   <span v-if="!check" class="muted">—</span>
   <span v-else-if="!check.ticket_found" class="badge warn" :title="check.warning">ТЗ не найдено</span>
-  <span v-else-if="check.ok" class="badge ok">✓ Совпадает</span>
-  <span v-else class="badge err" :title="title">
-    <template v-if="check.missing.length">−{{ check.missing.length }} не изменено</template>
-    <template v-if="check.missing.length && check.extra.length"> · </template>
-    <template v-if="check.extra.length">+{{ check.extra.length }} лишних</template>
-  </span>
+  <span v-else-if="!check.extra.length" class="badge ok" :title="title">✓ Совпадает</span>
+  <span v-else class="badge err" :title="title">+{{ check.extra.length }} лишних</span>
 </template>
 
 <script setup>

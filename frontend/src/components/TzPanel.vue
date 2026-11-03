@@ -39,7 +39,7 @@
                 <div class="muted small">{{ o.display_name }}</div>
               </td>
               <td class="small">{{ o.change_description }}</td>
-              <td><span class="badge err">✗ не изменён в MR</span></td>
+              <td><span class="badge">не изменён в MR</span></td>
             </tr>
             <tr v-if="!check.matched.length && !check.missing.length">
               <td colspan="3" class="muted">В ТЗ нет объектов</td>

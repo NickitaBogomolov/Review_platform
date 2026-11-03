@@ -65,6 +65,10 @@ code, pre { font-family: var(--mono); }
 .topbar .logo { font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px; }
 .topbar .logo:hover { text-decoration: none; }
 .topbar .spacer { flex: 1; }
+.topbar .nav { display: flex; gap: 4px; }
+.topbar .nav-link { color: #ececef; padding: 3px 10px; border-radius: 4px; font-size: 13px; }
+.topbar .nav-link:hover { background: #3a383f; text-decoration: none; }
+.topbar .nav-link.active { background: #3a383f; color: #fff; font-weight: 600; }
 .topbar .modes { display: flex; gap: 6px; font-size: 12px; }
 .topbar .mode { padding: 2px 8px; border-radius: 10px; background: #3a383f; color: #ececef; }
 .topbar .mode.mock { background: #8f4700; }

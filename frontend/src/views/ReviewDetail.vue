@@ -48,6 +48,7 @@
       <div v-if="tab === 'overview'" class="grid-2">
         <div class="stack">
           <TzPanel :check="review.tz_check" :ticket="review.ticket" @open-file="openFile" />
+          <BranchCheckPanel v-if="review.branch_check" :check="review.branch_check" @open-file="openFile" />
           <section v-if="review.mr_description" class="card">
             <div class="card-header">Описание MR</div>
             <div class="card-body small" style="white-space: pre-wrap">{{ review.mr_description }}</div>
@@ -159,6 +160,7 @@
 import { computed, inject, nextTick, provide, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../api'
+import BranchCheckPanel from '../components/BranchCheckPanel.vue'
 import DiffFile from '../components/DiffFile.vue'
 import FileTree from '../components/FileTree.vue'
 import FindingCard from '../components/FindingCard.vue'

@@ -2,6 +2,7 @@
 
 Выполняется синхронно (ревьюеров двое, очередь пока не нужна).
 """
+import json
 import logging
 import os
 
@@ -104,6 +105,27 @@ def sync_project(project=None, state=None, reviewer=None):
         run_review(review)
         if review.status == "failed":
             summary["failed"] += 1
+    return summary
+
+
+def seed_demo_data():
+    """Демо-режим: примеры правил линтера (если своих нет) и все демо-MR.
+
+    Ревью без сверки с dev-веткой, созданные прежней версией, пересчитываются: head_sha у них не менялся,
+    поэтому sync_project их пропустит.
+    """
+    if CustomLintRule.query.first() is None:
+        path = os.path.join(os.path.dirname(__file__), "..", "fixtures", "demo_scenarios.json")
+        with open(path, encoding="utf-8") as fh:
+            rules = json.load(fh)["lint_rules"]
+        db.session.add_all(CustomLintRule(**rule) for rule in rules)
+        db.session.commit()
+
+    project = current_app.config["GITLAB_PROJECT"]
+    outdated = [r for r in Review.query.filter_by(gitlab_project=project).all() if r.branch_check is None]
+    summary = sync_project()
+    for review in outdated:
+        run_review(review)
     return summary
 
 
@@ -210,7 +232,8 @@ def _run(review):
     # --- 4а. Сверка с коммитами тикета в dev-ветке (только для MR в тестовую ветку)
     review.branch_check = None
     if mr["target_branch"] == cfg["GITLAB_TST_BRANCH"]:
-        review.branch_check = check_against_dev(gl, cfg, review.gitlab_project, key, review.files, review.head_sha)
+        review.branch_check = check_against_dev(gl, cfg, review.gitlab_project, key, review.files,
+                                                 mr_merged=mr.get("state") == "merged")
 
     # --- 5. Линтер (только добавленные строки)
     custom_rules = [RegexRule(r.rule_id, r.pattern, r.message, r.severity, r.scope)

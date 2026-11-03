@@ -42,15 +42,19 @@ def test_sync_project_mrs(client):
     r = client.post("/api/reviews/sync", json={})
     assert r.status_code == 200
     s = r.get_json()
-    assert (s["project"], s["total"], s["created"], s["failed"]) == ("bank/ibso", 1, 1, 0)
+    assert (s["project"], s["total"], s["created"], s["failed"]) == ("bank/ibso", 10, 10, 0)
 
     reviews = client.get("/api/reviews").get_json()
-    assert len(reviews) == 1 and reviews[0]["mr_iid"] == 1 and reviews[0]["status"] == "done"
+    assert len(reviews) == 10 and all(r["status"] == "done" for r in reviews)
+    assert sorted(r["mr_iid"] for r in reviews) == list(range(1, 11))
 
     # повторный импорт: MR не менялся — пропускается, дубликат не создаётся
     s2 = client.post("/api/reviews/sync", json={}).get_json()
-    assert (s2["created"], s2["updated"], s2["skipped"]) == (0, 0, 1)
-    assert len(client.get("/api/reviews").get_json()) == 1
+    assert (s2["created"], s2["updated"], s2["skipped"]) == (0, 0, 10)
+    assert len(client.get("/api/reviews").get_json()) == 10
+
+    # фильтр по состоянию: влит только один демо-MR
+    assert client.post("/api/reviews/sync", json={"state": "merged"}).get_json()["total"] == 1
 
 
 def test_sync_bad_state(client):
@@ -96,6 +100,7 @@ def test_mr_to_tst_compared_with_dev_commits(client):
         "RCK2-3232: новая операция CALC_PENALTY",
         "RCK2-3232: учёт MAX_SUM в тарифе",
     ]
+    assert check["tst_commits"] == []
     status = {f["path"]: f["status"] for f in check["files"]}
     assert status == {
         "README.md": "ignored",

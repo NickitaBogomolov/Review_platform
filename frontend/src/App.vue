@@ -6,6 +6,10 @@
       </svg>
       Портал Code Review
     </router-link>
+    <nav class="nav">
+      <router-link to="/" class="nav-link" :class="{ active: route.name !== 'lint-rules' }">Ревью</router-link>
+      <router-link to="/linters" class="nav-link" :class="{ active: route.name === 'lint-rules' }">Линтеры</router-link>
+    </nav>
     <div class="spacer" />
     <div v-if="health" class="modes">
       <span class="mode" :class="{ mock: health.gitlab_mock }">GitLab: {{ health.gitlab_mock ? 'демо' : 'API' }}</span>
@@ -21,8 +25,10 @@
 
 <script setup>
 import { onMounted, provide, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { api, reviewerName } from './api'
 
+const route = useRoute()
 const health = ref(null)
 const reviewer = ref(reviewerName.get())
 provide('reviewer', reviewer)

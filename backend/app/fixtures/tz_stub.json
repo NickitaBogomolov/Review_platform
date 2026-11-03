@@ -22,5 +22,146 @@
         "change_description": "Перед закрытием вызывать расчёт пени"
       }
     ]
+  },
+  "RCK2-3435": {
+    "title": "Минимальная ставка вклада",
+    "description": "Проценты по вкладу считать не ниже минимальной ставки MIN_RATE. Если ставка не задана — ошибка. Закрытие вклада при необходимости доработать отдельно.",
+    "developer": "Сидоров А.В.",
+    "analyst": "Кузнецова Е.М.",
+    "portal_url": "",
+    "objects": [
+      {
+        "system_name": "DEPOSIT\\CALC_PERCENT.plp",
+        "display_name": "Расчёт процентов",
+        "change_description": "Учитывать MIN_RATE, проверять, что ставка задана"
+      },
+      {
+        "system_name": "DEPOSIT\\CLOSE_DEPOSIT.plp",
+        "display_name": "Закрытие вклада",
+        "change_description": "При необходимости — отдельным MR"
+      }
+    ]
+  },
+  "RCK2-3501": {
+    "title": "Округление графика платежей",
+    "description": "Округлять сумму платежа до копеек и считать число платежей.",
+    "developer": "Иванов И.И.",
+    "analyst": "Кузнецова Е.М.",
+    "portal_url": "",
+    "objects": [
+      {
+        "system_name": "LOAN\\CALC_SCHEDULE.plp",
+        "display_name": "Расчёт графика",
+        "change_description": "Округление суммы, счётчик платежей"
+      }
+    ]
+  },
+  "RCK2-3502": {
+    "title": "Лимит платежа",
+    "description": "Проверять лимит платежа 100000 перед отправкой и писать лимит в журнал.",
+    "developer": "Петрова Н.С.",
+    "analyst": "Кузнецова Е.М.",
+    "portal_url": "",
+    "objects": [
+      {
+        "system_name": "PAYMENT\\SEND_PAYMENT.plp",
+        "display_name": "Отправка платежа",
+        "change_description": "Лимит 100000, вызов CHECK_LIMIT"
+      },
+      {
+        "system_name": "PAYMENT\\LOG_PAYMENT.plp",
+        "display_name": "Журнал платежей",
+        "change_description": "Писать применённый лимит"
+      }
+    ]
+  },
+  "RCK2-3510": {
+    "title": "Доработка карт",
+    "description": "Дневной лимит при открытии карты и дата блокировки.",
+    "developer": "Сидоров А.В.",
+    "analyst": "Кузнецова Е.М.",
+    "portal_url": "",
+    "objects": [
+      {
+        "system_name": "CARD\\OPEN_CARD.plp",
+        "display_name": "Открытие карты",
+        "change_description": "Дневной лимит"
+      },
+      {
+        "system_name": "CARD\\BLOCK_CARD.plp",
+        "display_name": "Блокировка карты",
+        "change_description": "Сохранять дату блокировки"
+      }
+    ]
+  },
+  "RCK2-3600": {
+    "title": "Текст SMS",
+    "description": "Уточнить текст SMS об операции.",
+    "developer": "Сидоров А.В.",
+    "analyst": "Кузнецова Е.М.",
+    "portal_url": "",
+    "objects": [
+      {
+        "system_name": "SMS\\SEND_SMS.plp",
+        "display_name": "Отправка SMS",
+        "change_description": "Новый текст"
+      }
+    ]
+  },
+  "RCK2-3620": {
+    "title": "Закрытие счёта",
+    "description": "Проверять нулевой остаток и сохранять дату закрытия.",
+    "developer": "Иванов И.И.",
+    "analyst": "Кузнецова Е.М.",
+    "portal_url": "",
+    "objects": [
+      {
+        "system_name": "ACC\\CLOSE_ACC.plp",
+        "display_name": "Закрытие счёта",
+        "change_description": "Проверка остатка, дата закрытия"
+      }
+    ]
+  },
+  "RCK2-3700": {
+    "title": "Выгрузка отчёта",
+    "description": "Новое имя файла выгрузки.",
+    "developer": "Петрова Н.С.",
+    "analyst": "Кузнецова Е.М.",
+    "portal_url": "",
+    "objects": [
+      {
+        "system_name": "REP\\EXPORT_REPORT.plp",
+        "display_name": "Выгрузка отчёта",
+        "change_description": "Имя файла report_v2.csv"
+      }
+    ]
+  },
+  "RCK2-3800": {
+    "title": "Расчёт сбора",
+    "description": "Брать размер сбора из тарифа.",
+    "developer": "Иванов И.И.",
+    "analyst": "Кузнецова Е.М.",
+    "portal_url": "",
+    "objects": [
+      {
+        "system_name": "FEE\\CALC_FEE.plp",
+        "display_name": "Расчёт сбора",
+        "change_description": "GET_FEE вместо константы"
+      }
+    ]
+  },
+  "RCK2-3900": {
+    "title": "Пакетный запуск",
+    "description": "Дождаться освобождения очереди перед запуском.",
+    "developer": "Петрова Н.С.",
+    "analyst": "Кузнецова Е.М.",
+    "portal_url": "",
+    "objects": [
+      {
+        "system_name": "BATCH\\RUN_BATCH.plp",
+        "display_name": "Пакетный запуск",
+        "change_description": "Ожидание очереди"
+      }
+    ]
   }
 }

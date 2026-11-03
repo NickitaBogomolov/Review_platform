@@ -41,7 +41,7 @@ def test_extract_ticket_key():
 
 
 def test_object_missing_from_mr_is_not_an_error():
-    objects = [{"id": 1, "system_name": "AC_FIN\A.plp"}, {"id": 2, "system_name": "PR_CRED\B.plp"}]
+    objects = [{"id": 1, "system_name": "AC_FIN\\A.plp"}, {"id": 2, "system_name": "PR_CRED\\B.plp"}]
     files = [{"id": 10, "old_path": "src/AC_FIN/A.plp", "new_path": "src/AC_FIN/A.plp", "change_type": "modified"}]
     res = match_objects(objects, files)
     assert [o["id"] for o in res["missing"]] == [2]

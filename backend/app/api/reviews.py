@@ -1,8 +1,8 @@
 from flask import current_app, jsonify, request
 
 from ..extensions import db
-from ..linters import available_rules
-from ..models import Finding, Review, ReviewFile, Ticket
+from ..linters import available_rules, compile_pattern
+from ..models import CustomLintRule, Finding, Review, ReviewFile, Ticket
 from ..services.diff_utils import content_lines
 from ..services.gitlab_client import GitLabError
 from ..services.review_service import ReviewError, create_review, run_review, sync_project, sync_ticket
@@ -12,6 +12,7 @@ from . import api_bp
 VERDICTS = {"pending", "approved", "changes_requested"}
 FINDING_STATUSES = {"open", "accepted", "dismissed"}
 SEVERITIES = {"info", "minor", "major", "critical"}
+RULE_SCOPES = {"code", "raw"}
 
 
 def _error(message, code=400):
@@ -43,6 +44,70 @@ def health():
 def lint_rules():
     disabled = set(current_app.config["LINT_DISABLED_RULES"])
     return jsonify([{**r, "enabled": r["id"] not in disabled} for r in available_rules()])
+
+
+def _apply_custom_rule(rule, data, creating=False):
+    """Переносит поля из запроса в правило. Возвращает текст ошибки или None."""
+    if creating or "pattern" in data:
+        pattern = data.get("pattern")
+        if not isinstance(pattern, str) or not pattern.strip():
+            return "Укажите регулярное выражение"
+        try:
+            compile_pattern(pattern)
+        except ValueError as exc:
+            return str(exc)
+        rule.pattern = pattern
+    if creating or "message" in data:
+        message = data.get("message")
+        if not isinstance(message, str) or not message.strip():
+            return "Укажите текст замечания"
+        rule.message = message.strip()
+    if "severity" in data:
+        if data["severity"] not in SEVERITIES:
+            return "Некорректная важность"
+        rule.severity = data["severity"]
+    if "scope" in data:
+        if data["scope"] not in RULE_SCOPES:
+            return "Некорректная область поиска"
+        rule.scope = data["scope"]
+    if "enabled" in data:
+        rule.enabled = bool(data["enabled"])
+    return None
+
+
+@api_bp.get("/custom-lint-rules")
+def list_custom_rules():
+    rules = CustomLintRule.query.order_by(CustomLintRule.id).all()
+    return jsonify([r.to_dict() for r in rules])
+
+
+@api_bp.post("/custom-lint-rules")
+def post_custom_rule():
+    rule = CustomLintRule()
+    error = _apply_custom_rule(rule, request.get_json(silent=True) or {}, creating=True)
+    if error:
+        return _error(error)
+    db.session.add(rule)
+    db.session.commit()
+    return jsonify(rule.to_dict()), 201
+
+
+@api_bp.patch("/custom-lint-rules/<int:rule_id>")
+def patch_custom_rule(rule_id):
+    rule = _get_or_404(CustomLintRule, rule_id)
+    error = _apply_custom_rule(rule, request.get_json(silent=True) or {})
+    if error:
+        db.session.rollback()
+        return _error(error)
+    db.session.commit()
+    return jsonify(rule.to_dict())
+
+
+@api_bp.delete("/custom-lint-rules/<int:rule_id>")
+def delete_custom_rule(rule_id):
+    db.session.delete(_get_or_404(CustomLintRule, rule_id))
+    db.session.commit()
+    return "", 204
 
 
 @api_bp.get("/reviews")

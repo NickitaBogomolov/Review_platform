@@ -4,7 +4,7 @@
     "description": "Доработки по задаче RCK2-3232.\n\n- добавлен учёт MAX_SUM в тарифе\n- новая операция CALC_PENALTY",
     "author": "Сидоров А.В.",
     "source_branch": "feature/RCK2-3232-max-comm",
-    "target_branch": "develop",
+    "target_branch": "develop_tst",
     "base_sha": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     "head_sha": "f9e8d7c6b5a4031928374655647382910abcdef1"
   },
@@ -159,6 +159,56 @@
         "- RECALC_COMM — учёт максимальной суммы комиссии",
         "- CALC_PENALTY — расчёт пени"
       ]
+    }
+  ],
+  "dev_commits": [
+    {
+      "id": "d3v0000000000000000000000000000000000004",
+      "message": "Merge branch 'feature/RCK2-3232-max-comm' into 'develop_dev'",
+      "parent_ids": ["d3v0000000000000000000000000000000000000", "d3v0000000000000000000000000000000000003"],
+      "author": "Сидоров А.В.",
+      "created_at": "2026-10-29T16:00:00+03:00",
+      "files": []
+    },
+    {
+      "id": "d3v0000000000000000000000000000000000003",
+      "message": "RCK2-3232: перед закрытием кредита считаем пени",
+      "parent_ids": ["d3v0000000000000000000000000000000000002"],
+      "author": "Сидоров А.В.",
+      "created_at": "2026-10-29T15:00:00+03:00",
+      "files": [
+        {
+          "old_path": "src/PR_CRED/CLOSE_CRED.plp",
+          "new_path": "src/PR_CRED/CLOSE_CRED.plp",
+          "change_type": "modified",
+          "old": ["begin", "\t[STATE] := 'CLOSED';", "end;"],
+          "new": ["begin", "\tCALC_PENALTY(sysdate);", "\t[STATE] := 'CLOSED';", "end;"]
+        }
+      ]
+    },
+    {
+      "id": "d3v0000000000000000000000000000000000002",
+      "message": "RCK2-3232: новая операция CALC_PENALTY",
+      "parent_ids": ["d3v0000000000000000000000000000000000001"],
+      "author": "Сидоров А.В.",
+      "created_at": "2026-10-29T14:00:00+03:00",
+      "files": [{"from_mr": "src/AC_FIN/CALC_PENALTY.plp"}]
+    },
+    {
+      "id": "d3v0000000000000000000000000000000000001",
+      "message": "RCK2-3232: учёт MAX_SUM в тарифе",
+      "parent_ids": ["d3v0000000000000000000000000000000000000"],
+      "author": "Сидоров А.В.",
+      "created_at": "2026-10-29T13:00:00+03:00",
+      "files": [{"from_mr": "src/AC_FIN/RECALC_COMM.plp"}]
+    },
+    {
+      "id": "d3v0000000000000000000000000000000000000",
+      "message": "RCK2-32320: другой тикет с похожим номером",
+      "parent_ids": [],
+      "author": "Иванов И.И.",
+      "created_at": "2026-10-28T10:00:00+03:00",
+      "files": []
     }
   ]
 }

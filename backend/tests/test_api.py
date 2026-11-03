@@ -55,3 +55,59 @@ def test_sync_project_mrs(client):
 
 def test_sync_bad_state(client):
     assert client.post("/api/reviews/sync", json={"state": "whatever"}).status_code == 400
+
+
+def test_custom_lint_rules_crud_and_review(client):
+    assert client.post("/api/custom-lint-rules", json={"pattern": "(", "message": "x"}).status_code == 400
+    assert client.post("/api/custom-lint-rules", json={"pattern": "x"}).status_code == 400
+    assert client.post("/api/custom-lint-rules", json={"pattern": "x", "message": "m", "severity": "?"}).status_code == 400
+
+    r = client.post("/api/custom-lint-rules",
+                    json={"pattern": r"l_comm\s*:=", "message": "Присваивание комиссии", "severity": "critical"})
+    assert r.status_code == 201
+    rule = r.get_json()
+    assert (rule["rule_id"], rule["scope"], rule["enabled"]) == ("USR001", "code", True)
+
+    rid = client.post("/api/reviews", json={"mr_url": MR}).get_json()["id"]
+    findings = client.get(f"/api/reviews/{rid}").get_json()["findings"]
+    mine = [f for f in findings if f["rule"] == "USR001"]
+    assert mine and all(f["source"] == "lint" and f["severity"] == "critical"
+                        and f["message"] == "Присваивание комиссии" for f in mine)
+
+    # выключенное правило при перезапуске анализа не срабатывает
+    assert client.patch(f"/api/custom-lint-rules/{rule['id']}", json={"enabled": False}).get_json()["enabled"] is False
+    findings = client.post(f"/api/reviews/{rid}/rerun").get_json()["findings"]
+    assert not [f for f in findings if f["rule"] == "USR001"]
+
+    assert client.patch(f"/api/custom-lint-rules/{rule['id']}", json={"pattern": "["}).status_code == 400
+    assert client.get("/api/custom-lint-rules").get_json()[0]["pattern"] == r"l_comm\s*:="
+    assert client.delete(f"/api/custom-lint-rules/{rule['id']}").status_code == 204
+    assert client.get("/api/custom-lint-rules").get_json() == []
+    assert client.delete(f"/api/custom-lint-rules/{rule['id']}").status_code == 404
+
+
+def test_mr_to_tst_compared_with_dev_commits(client):
+    rid = client.post("/api/reviews", json={"mr_url": MR}).get_json()["id"]
+    d = client.get(f"/api/reviews/{rid}").get_json()
+    check = d["branch_check"]
+    assert d["target_branch"] == "develop_tst"
+    assert [c["title"] for c in check["commits"]] == [
+        "RCK2-3232: перед закрытием кредита считаем пени",
+        "RCK2-3232: новая операция CALC_PENALTY",
+        "RCK2-3232: учёт MAX_SUM в тарифе",
+    ]
+    status = {f["path"]: f["status"] for f in check["files"]}
+    assert status == {
+        "README.md": "ignored",
+        "src/AC_FIN/CALC_PENALTY.plp": "same",
+        "src/AC_FIN/RECALC_COMM.plp": "same",
+        "src/CLIENT/UPD_ADDR.plp": "only_in_mr",
+        "src/PR_CRED/CLOSE_CRED.plp": "only_in_dev",
+    }
+    assert check["ok"] is False
+
+
+def test_mr_to_other_branch_is_not_compared(client, app):
+    app.config["GITLAB_TST_BRANCH"] = "some_other_branch"
+    rid = client.post("/api/reviews", json={"mr_url": MR}).get_json()["id"]
+    assert client.get(f"/api/reviews/{rid}").get_json()["branch_check"] is None

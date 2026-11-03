@@ -38,3 +38,11 @@ def test_extract_ticket_key():
     assert extract_ticket_key(REGEX, "RCK2-3232: правки") == "RCK2-3232"
     assert extract_ticket_key(REGEX, "Без номера", "feature/rck2-3232-max") == "RCK2-3232"
     assert extract_ticket_key(REGEX, "нет", "develop", None) is None
+
+
+def test_object_missing_from_mr_is_not_an_error():
+    objects = [{"id": 1, "system_name": "AC_FIN\A.plp"}, {"id": 2, "system_name": "PR_CRED\B.plp"}]
+    files = [{"id": 10, "old_path": "src/AC_FIN/A.plp", "new_path": "src/AC_FIN/A.plp", "change_type": "modified"}]
+    res = match_objects(objects, files)
+    assert [o["id"] for o in res["missing"]] == [2]
+    assert res["ok"] is True

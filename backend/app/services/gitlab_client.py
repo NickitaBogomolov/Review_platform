@@ -44,6 +44,16 @@ def _change_type(item):
     return "modified"
 
 
+def _change_item(item):
+    return {
+        "old_path": item.get("old_path"),
+        "new_path": item.get("new_path"),
+        "change_type": _change_type(item),
+        "diff": item.get("diff") or "",
+        "too_large": bool(item.get("too_large") or item.get("collapsed")) and not item.get("diff"),
+    }
+
+
 class GitLabClient:
     def __init__(self, base_url, token, verify=True, timeout=30):
         if not base_url:
@@ -133,16 +143,51 @@ class GitLabClient:
             data = self._get(f"/projects/{pid}/merge_requests/{iid}/changes",
                              params={"access_raw_diffs": "true"})
             items = (data or {}).get("changes", [])
+        return [_change_item(it) for it in items]
+
+    def list_branch_commits(self, project, branch, limit=5000):
+        """Коммиты ветки от новых к старым, не больше limit. API не умеет искать по сообщению."""
+        pid = self._pid(project)
+        items = []
+        page = 1
+        while len(items) < limit:
+            chunk = self._get(f"/projects/{pid}/repository/commits",
+                              params={"ref_name": branch, "page": page, "per_page": 100})
+            if chunk is None:
+                raise GitLabError(f"Ветка {branch} в проекте {project} не найдена")
+            items.extend(chunk)
+            if len(chunk) < 100:
+                break
+            page += 1
         return [
             {
-                "old_path": it.get("old_path"),
-                "new_path": it.get("new_path"),
-                "change_type": _change_type(it),
-                "diff": it.get("diff") or "",
-                "too_large": bool(it.get("too_large") or it.get("collapsed")) and not it.get("diff"),
+                "id": it["id"],
+                "short_id": it.get("short_id") or it["id"][:8],
+                "title": it.get("title"),
+                "message": it.get("message") or it.get("title") or "",
+                "parent_ids": it.get("parent_ids") or [],
+                "author": it.get("author_name"),
+                "created_at": it.get("created_at"),
+                "web_url": it.get("web_url"),
             }
-            for it in items
+            for it in items[:limit]
         ]
+
+    def get_commit_changes(self, project, sha):
+        """Файлы коммита. Для merge-коммита GitLab отдаёт изменения относительно первого родителя."""
+        pid = self._pid(project)
+        items = []
+        page = 1
+        while True:
+            chunk = self._get(f"/projects/{pid}/repository/commits/{sha}/diff",
+                              params={"page": page, "per_page": 100})
+            if chunk is None:
+                raise GitLabError(f"Коммит {sha} в проекте {project} не найден")
+            items.extend(chunk)
+            if len(chunk) < 100:
+                break
+            page += 1
+        return [_change_item(it) for it in items]
 
     def get_file_content(self, project, path, ref):
         if not path or not ref:
@@ -180,6 +225,39 @@ class FixtureGitLabClient:
     def get_merge_request_changes(self, project, iid):
         result = []
         for f in self.data["files"]:
+            result.append({
+                "old_path": f.get("old_path") or f.get("new_path"),
+                "new_path": f.get("new_path") or f.get("old_path"),
+                "change_type": f["change_type"],
+                "diff": make_unified_diff("\n".join(f.get("old", [])), "\n".join(f.get("new", []))),
+                "too_large": False,
+            })
+        return result
+
+    def list_branch_commits(self, project, branch, limit=5000):
+        return [
+            {
+                "id": c["id"],
+                "short_id": c["id"][:8],
+                "title": c["message"].split("\n")[0],
+                "message": c["message"],
+                "parent_ids": c.get("parent_ids", []),
+                "author": c.get("author"),
+                "created_at": c.get("created_at"),
+                "web_url": None,
+            }
+            for c in self.data.get("dev_commits", [])
+        ][:limit]
+
+    def get_commit_changes(self, project, sha):
+        commit = next((c for c in self.data.get("dev_commits", []) if c["id"] == sha), None)
+        if commit is None:
+            raise GitLabError(f"Коммит {sha} в проекте {project} не найден")
+        mr_files = {f.get("new_path"): f for f in self.data["files"]}
+        result = []
+        for f in commit["files"]:
+            # from_mr — коммит содержит ровно те же правки файла, что и демо-MR
+            f = mr_files[f["from_mr"]] if "from_mr" in f else f
             result.append({
                 "old_path": f.get("old_path") or f.get("new_path"),
                 "new_path": f.get("new_path") or f.get("old_path"),

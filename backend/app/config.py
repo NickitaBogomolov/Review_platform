@@ -46,6 +46,11 @@ class Config:
                       or ("demo/ibso" if GITLAB_MOCK else ""))
     # какие MR импортировать: opened / merged / closed / all
     GITLAB_MR_STATE = os.getenv("GITLAB_MR_STATE", "all").strip().lower()
+    # MR в GITLAB_TST_BRANCH сверяются с коммитами тикета в GITLAB_DEV_BRANCH
+    GITLAB_DEV_BRANCH = os.getenv("GITLAB_DEV_BRANCH", "develop_dev").strip()
+    GITLAB_TST_BRANCH = os.getenv("GITLAB_TST_BRANCH", "develop_tst").strip()
+    # сколько последних коммитов dev-ветки просматривать в поисках коммитов тикета
+    GITLAB_MAX_BRANCH_COMMITS = int(os.getenv("GITLAB_MAX_BRANCH_COMMITS", "5000"))
 
     TZ_PORTAL_MODE = os.getenv("TZ_PORTAL_MODE", "stub")
     TZ_PORTAL_URL = os.getenv("TZ_PORTAL_URL", "").rstrip("/")

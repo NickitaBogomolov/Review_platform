@@ -8,9 +8,10 @@ import os
 from flask import current_app
 
 from ..extensions import db
-from ..linters import lint_file
-from ..models import Finding, Review, ReviewFile, Ticket, TzObject, utcnow
+from ..linters import RegexRule, lint_file
+from ..models import CustomLintRule, Finding, Review, ReviewFile, Ticket, TzObject, utcnow
 from . import context_builder, prompts
+from .branch_compare import check_against_dev
 from .diff_utils import added_line_numbers, diff_stats, make_unified_diff, parse_unified_diff
 from .gitlab_client import GitLabError, get_gitlab_client, parse_mr_url
 from .llm_client import LLMError, get_llm_client, parse_llm_response
@@ -206,11 +207,19 @@ def _run(review):
         check["warning"] = "Номер тикета не найден в названии MR, ветке или описании"
     review.tz_check = check
 
+    # --- 4а. Сверка с коммитами тикета в dev-ветке (только для MR в тестовую ветку)
+    review.branch_check = None
+    if mr["target_branch"] == cfg["GITLAB_TST_BRANCH"]:
+        review.branch_check = check_against_dev(gl, cfg, review.gitlab_project, key, review.files, review.head_sha)
+
     # --- 5. Линтер (только добавленные строки)
+    custom_rules = [RegexRule(r.rule_id, r.pattern, r.message, r.severity, r.scope)
+                    for r in CustomLintRule.query.filter_by(enabled=True).all()]
     for f in review.files:
         if not f.is_code or f.change_type == "deleted" or not f.new_content:
             continue
-        for issue in lint_file(f.path, f.new_content, cfg, only_lines=added_line_numbers(f.hunks)):
+        for issue in lint_file(f.path, f.new_content, cfg, only_lines=added_line_numbers(f.hunks),
+                               extra_rules=custom_rules):
             review.findings.append(Finding(
                 file_id=f.id, source="lint", rule=issue.rule, severity=issue.severity,
                 line=issue.line, side="new", message=issue.message, suggestion=issue.suggestion,

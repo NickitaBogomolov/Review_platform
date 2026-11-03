@@ -91,6 +91,7 @@ class Review(db.Model):
     status = db.Column(db.String(20), nullable=False, default="pending")
     error = db.Column(db.Text)
     tz_check = db.Column(JSONType)  # результат сверки объектов ТЗ и файлов MR
+    branch_check = db.Column(JSONType)  # сверка MR в тестовую ветку с коммитами тикета в dev-ветке
     llm_stats = db.Column(JSONType)  # статистика отправки в модель (токены, фрагменты)
 
     # pending | approved | changes_requested
@@ -144,6 +145,7 @@ class Review(db.Model):
         if full:
             data["mr_description"] = self.mr_description
             data["ticket"] = self.ticket.to_dict() if self.ticket else None
+            data["branch_check"] = self.branch_check
             data["files"] = [f.to_dict() for f in self.files]
             data["findings"] = [f.to_dict() for f in self.findings]
         return data
@@ -225,5 +227,36 @@ class Finding(db.Model):
             "suggestion": self.suggestion,
             "status": self.status,
             "author": self.author,
+            "created_at": iso(self.created_at),
+        }
+
+
+class CustomLintRule(db.Model):
+    """Правило линтера, заведённое пользователем: регулярное выражение и текст замечания."""
+
+    __tablename__ = "custom_lint_rules"
+
+    id = db.Column(db.Integer, primary_key=True)
+    pattern = db.Column(db.String(500), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    severity = db.Column(db.String(20), nullable=False, default="minor")  # info | minor | major | critical
+    # code — только код (без комментариев и содержимого строк) | raw — строка как есть
+    scope = db.Column(db.String(10), nullable=False, default="code")
+    enabled = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
+
+    @property
+    def rule_id(self):
+        return f"USR{self.id:03d}"
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "rule_id": self.rule_id,
+            "pattern": self.pattern,
+            "message": self.message,
+            "severity": self.severity,
+            "scope": self.scope,
+            "enabled": self.enabled,
             "created_at": iso(self.created_at),
         }

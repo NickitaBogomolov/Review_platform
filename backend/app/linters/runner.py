@@ -7,11 +7,12 @@ def available_rules():
     return [{"id": r.id, "severity": r.severity, "title": r.title} for r in ALL_RULES]
 
 
-def lint_file(path, text, config=None, only_lines=None):
+def lint_file(path, text, config=None, only_lines=None, extra_rules=()):
     """Прогоняет правила по файлу.
 
     only_lines — множество номеров строк (новой версии), по которым нужно вернуть замечания.
     Обычно это добавленные в MR строки: так ревьюер видит только то, что принёс этот MR.
+    extra_rules — готовые экземпляры правил в дополнение к встроенным (правила пользователей).
     """
     config = config or {}
     disabled = set(config.get("LINT_DISABLED_RULES") or [])
@@ -22,10 +23,8 @@ def lint_file(path, text, config=None, only_lines=None):
     src = SourceFile(path=path, raw=raw, code=code, comments=comments)
 
     issues = []
-    for rule_cls in ALL_RULES:
-        if rule_cls.id in disabled:
-            continue
-        rule = rule_cls(config)
+    rules = [rule_cls(config) for rule_cls in ALL_RULES if rule_cls.id not in disabled]
+    for rule in rules + list(extra_rules):
         for issue in rule.check(src):
             if only_lines is not None and issue.line not in only_lines:
                 continue

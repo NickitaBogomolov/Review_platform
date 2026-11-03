@@ -34,7 +34,7 @@ def match_objects(tz_objects, mr_files, ignore_patterns=()):
     mr_files:   [{id, old_path, new_path, change_type}]
     Возвращает dict:
       matched:  [{object, file_id, path}]
-      missing:  [object]  — есть в ТЗ, но не изменён в MR
+      missing:  [object]  — есть в ТЗ, но не изменён в MR (справочно, ошибкой не считается)
       extra:    [{file_id, path}] — изменён в MR, но нет в ТЗ
       ignored:  [{file_id, path}] — служебные файлы, не участвуют в сверке
       file_status: {file_id: (status, object_id)}
@@ -77,7 +77,7 @@ def match_objects(tz_objects, mr_files, ignore_patterns=()):
         "extra": extra,
         "ignored": ignored,
         "file_status": file_status,
-        "ok": not missing and not extra,
+        "ok": not extra,
     }
 
 

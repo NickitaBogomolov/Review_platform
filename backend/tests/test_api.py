@@ -116,3 +116,37 @@ def test_mr_to_other_branch_is_not_compared(client, app):
     app.config["GITLAB_TST_BRANCH"] = "some_other_branch"
     rid = client.post("/api/reviews", json={"mr_url": MR}).get_json()["id"]
     assert client.get(f"/api/reviews/{rid}").get_json()["branch_check"] is None
+
+
+def test_builtin_rule_can_be_disabled_and_enabled(client):
+    rid = client.post("/api/reviews", json={"mr_url": MR}).get_json()["id"]
+    findings = client.get(f"/api/reviews/{rid}").get_json()["findings"]
+    rule_id = next(f["rule"] for f in findings if f["source"] == "lint")
+    rule = next(r for r in client.get("/api/lint-rules").get_json() if r["id"] == rule_id)
+    assert rule["enabled"] is True
+
+    r = client.patch(f"/api/lint-rules/{rule_id.lower()}", json={"enabled": False})
+    assert r.status_code == 200 and r.get_json()["enabled"] is False
+    assert next(r for r in client.get("/api/lint-rules").get_json() if r["id"] == rule_id)["enabled"] is False
+    findings = client.post(f"/api/reviews/{rid}/rerun").get_json()["findings"]
+    assert rule_id not in {f["rule"] for f in findings}
+    assert [f for f in findings if f["source"] == "lint"]  # остальные правила работают
+
+    assert client.patch(f"/api/lint-rules/{rule_id}", json={"enabled": True}).get_json()["enabled"] is True
+    findings = client.post(f"/api/reviews/{rid}/rerun").get_json()["findings"]
+    assert rule_id in {f["rule"] for f in findings}
+
+
+def test_interface_switch_overrides_env_setting(client, app):
+    app.config["LINT_DISABLED_RULES"] = ["PLP010", "PLP011"]
+    status = lambda: {r["id"]: r["enabled"] for r in client.get("/api/lint-rules").get_json()}
+    assert status()["PLP010"] is False and status()["PLP011"] is False
+
+    client.patch("/api/lint-rules/PLP010", json={"enabled": True})
+    assert status()["PLP010"] is True and status()["PLP011"] is False
+
+
+def test_patch_builtin_rule_validation(client):
+    assert client.patch("/api/lint-rules/NOPE", json={"enabled": False}).status_code == 404
+    assert client.patch("/api/lint-rules/PLP010", json={"enabled": "no"}).status_code == 400
+    assert client.patch("/api/lint-rules/PLP010", json={}).status_code == 400

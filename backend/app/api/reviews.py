@@ -2,10 +2,11 @@ from flask import current_app, jsonify, request
 
 from ..extensions import db
 from ..linters import available_rules, compile_pattern
-from ..models import CustomLintRule, Finding, Review, ReviewFile, Ticket
+from ..models import CustomLintRule, Finding, LintRuleSetting, Review, ReviewFile, Ticket
 from ..services.diff_utils import content_lines
 from ..services.gitlab_client import GitLabError
-from ..services.review_service import ReviewError, create_review, run_review, sync_project, sync_ticket
+from ..services.review_service import (ReviewError, create_review, disabled_builtin_rules, run_review, sync_project,
+                                       sync_ticket)
 from ..services.tz_portal import TzPortalError
 from . import api_bp
 
@@ -42,8 +43,26 @@ def health():
 
 @api_bp.get("/lint-rules")
 def lint_rules():
-    disabled = set(current_app.config["LINT_DISABLED_RULES"])
+    disabled = disabled_builtin_rules()
     return jsonify([{**r, "enabled": r["id"] not in disabled} for r in available_rules()])
+
+
+@api_bp.patch("/lint-rules/<rule_id>")
+def patch_lint_rule(rule_id):
+    rule_id = rule_id.upper()
+    rule = next((r for r in available_rules() if r["id"] == rule_id), None)
+    if rule is None:
+        return _error("Правило не найдено", 404)
+    enabled = (request.get_json(silent=True) or {}).get("enabled")
+    if not isinstance(enabled, bool):
+        return _error("Укажите enabled: true или false")
+    setting = db.session.get(LintRuleSetting, rule_id)
+    if setting is None:
+        setting = LintRuleSetting(rule_id=rule_id)
+        db.session.add(setting)
+    setting.enabled = enabled
+    db.session.commit()
+    return jsonify({**rule, "enabled": enabled})
 
 
 def _apply_custom_rule(rule, data, creating=False):

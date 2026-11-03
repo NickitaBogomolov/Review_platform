@@ -260,3 +260,12 @@ class CustomLintRule(db.Model):
             "enabled": self.enabled,
             "created_at": iso(self.created_at),
         }
+
+
+class LintRuleSetting(db.Model):
+    """Включение встроенного правила из интерфейса. Важнее LINT_DISABLED_RULES; нет записи — действует настройка."""
+
+    __tablename__ = "lint_rule_settings"
+
+    rule_id = db.Column(db.String(50), primary_key=True)
+    enabled = db.Column(db.Boolean, nullable=False)

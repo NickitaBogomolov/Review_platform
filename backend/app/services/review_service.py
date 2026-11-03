@@ -10,7 +10,7 @@ from flask import current_app
 
 from ..extensions import db
 from ..linters import RegexRule, lint_file
-from ..models import CustomLintRule, Finding, Review, ReviewFile, Ticket, TzObject, utcnow
+from ..models import CustomLintRule, Finding, LintRuleSetting, Review, ReviewFile, Ticket, TzObject, utcnow
 from . import context_builder, prompts
 from .branch_compare import check_against_dev
 from .diff_utils import added_line_numbers, diff_stats, make_unified_diff, parse_unified_diff
@@ -30,6 +30,17 @@ class ReviewError(Exception):
 
 def _is_code(path, extensions):
     return bool(path) and os.path.splitext(path)[1].lower() in extensions
+
+
+def disabled_builtin_rules():
+    """Выключенные встроенные правила: LINT_DISABLED_RULES с учётом переключателей из интерфейса."""
+    disabled = set(current_app.config["LINT_DISABLED_RULES"])
+    for setting in LintRuleSetting.query.all():
+        if setting.enabled:
+            disabled.discard(setting.rule_id)
+        else:
+            disabled.add(setting.rule_id)
+    return disabled
 
 
 def sync_ticket(key):
@@ -238,10 +249,11 @@ def _run(review):
     # --- 5. Линтер (только добавленные строки)
     custom_rules = [RegexRule(r.rule_id, r.pattern, r.message, r.severity, r.scope)
                     for r in CustomLintRule.query.filter_by(enabled=True).all()]
+    lint_config = {**cfg, "LINT_DISABLED_RULES": disabled_builtin_rules()}
     for f in review.files:
         if not f.is_code or f.change_type == "deleted" or not f.new_content:
             continue
-        for issue in lint_file(f.path, f.new_content, cfg, only_lines=added_line_numbers(f.hunks),
+        for issue in lint_file(f.path, f.new_content, lint_config, only_lines=added_line_numbers(f.hunks),
                                extra_rules=custom_rules):
             review.findings.append(Finding(
                 file_id=f.id, source="lint", rule=issue.rule, severity=issue.severity,

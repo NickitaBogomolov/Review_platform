@@ -29,6 +29,7 @@ export const api = {
   updateFinding: (fid, payload) => request('PATCH', `/findings/${fid}`, payload),
   deleteFinding: (fid) => request('DELETE', `/findings/${fid}`),
   lintRules: () => request('GET', '/lint-rules'),
+  updateLintRule: (id, payload) => request('PATCH', `/lint-rules/${id}`, payload),
   listCustomRules: () => request('GET', '/custom-lint-rules'),
   createCustomRule: (payload) => request('POST', '/custom-lint-rules', payload),
   updateCustomRule: (id, payload) => request('PATCH', `/custom-lint-rules/${id}`, payload),

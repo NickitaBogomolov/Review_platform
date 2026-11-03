@@ -79,14 +79,14 @@
         <summary class="card-header" style="cursor: pointer">Встроенные правила <span class="badge">{{ builtin.length }}</span></summary>
         <table class="list">
           <thead>
-            <tr><th>Код</th><th>Правило</th><th>Важность</th><th>Статус</th></tr>
+            <tr><th>Вкл.</th><th>Код</th><th>Правило</th><th>Важность</th></tr>
           </thead>
           <tbody>
-            <tr v-for="r in builtin" :key="r.id">
+            <tr v-for="r in builtin" :key="r.id" :class="{ 'rule-off': !r.enabled }">
+              <td><input type="checkbox" :checked="r.enabled" :title="r.enabled ? 'Выключить' : 'Включить'" @change="toggleBuiltin(r, $event)" /></td>
               <td class="mono">{{ r.id }}</td>
               <td>{{ r.title }}</td>
               <td><span class="sev" :class="r.severity">{{ SEVERITY_LABEL[r.severity] }}</span></td>
-              <td class="small muted">{{ r.enabled ? 'включено' : 'выключено (LINT_DISABLED_RULES)' }}</td>
             </tr>
           </tbody>
         </table>
@@ -150,6 +150,16 @@ async function toggle(rule) {
     Object.assign(rule, await api.updateCustomRule(rule.id, { enabled: !rule.enabled }))
   } catch (e) {
     error.value = e.message
+  }
+}
+
+async function toggleBuiltin(rule, event) {
+  error.value = ''
+  try {
+    Object.assign(rule, await api.updateLintRule(rule.id, { enabled: !rule.enabled }))
+  } catch (e) {
+    error.value = e.message
+    event.target.checked = rule.enabled
   }
 }
 
